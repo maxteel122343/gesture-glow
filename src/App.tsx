@@ -58,6 +58,7 @@ export default function App() {
   const [isServiceActive, setIsServiceActive] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [gestures, setGestures] = useState<GestureAction[]>([]);
+  const [isRequestingPermissions, setIsRequestingPermissions] = useState(false);
   const [showMarkers, setShowMarkers] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isListening, setIsListening] = useState(false);
@@ -871,12 +872,18 @@ export default function App() {
               </div>
 
               <button 
-                disabled={!allPermissionsGranted}
-                onClick={() => setIsServiceActive(true)}
+                onClick={() => {
+                  if (allPermissionsGranted) {
+                    setIsServiceActive(true);
+                    setShowOverlaySimulation(true);
+                  } else {
+                    setIsRequestingPermissions(true);
+                  }
+                }}
                 className={`w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${
                   allPermissionsGranted 
                   ? 'bg-blue-500 text-white hover:bg-blue-400 shadow-lg shadow-blue-500/20' 
-                  : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
+                  : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
                 }`}
               >
                 <Power className="w-5 h-5" />
@@ -907,6 +914,21 @@ export default function App() {
                   className="w-full py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg text-[10px] font-bold transition-colors"
                 >
                   {showOverlaySimulation ? 'Ocultar Simulação de Sobreposição' : 'Testar Simulação de Sobreposição'}
+                </button>
+
+                <button 
+                  onClick={() => {
+                    addNotification("Configurações APK", "Instruções de integração Android Studio geradas.", <ShieldCheck className="w-5 h-5 text-blue-500" />);
+                    // Trigger download of the README
+                    const link = document.createElement('a');
+                    link.href = 'data:text/markdown;charset=utf-8,' + encodeURIComponent("Consulte o arquivo android_instructions_README.md na raiz do projeto para configurar o Android Studio.");
+                    link.download = 'INSTRUCOES_APK.txt';
+                    link.click();
+                  }}
+                  className="w-full py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 border border-blue-500/30 rounded-lg text-[10px] font-bold transition-colors flex items-center justify-center gap-2"
+                >
+                  <Download className="w-3 h-3" />
+                  Baixar Guia de Integração Android Studio
                 </button>
               </div>
             </div>
@@ -983,7 +1005,80 @@ export default function App() {
 
                   {/* App Content */}
                   <div className="flex-1 relative overflow-hidden">
-                    {/* Floating Overlay Simulation (Real Mode) */}
+                    {/* Permission Request Overlay (Real Mode) */}
+                    {appMode === 'real' && isRequestingPermissions && (
+                      <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="absolute inset-0 z-[150] bg-zinc-950 p-6 flex flex-col justify-center space-y-6"
+                      >
+                        <div className="text-center space-y-2">
+                          <ShieldCheck className="w-12 h-12 text-blue-500 mx-auto" />
+                          <h3 className="text-lg font-bold">Permissões Necessárias</h3>
+                          <p className="text-xs text-zinc-400">O AI Agent precisa destas permissões para operar sobre o sistema.</p>
+                        </div>
+
+                        <div className="space-y-3">
+                          {[
+                            { id: 'overlay', label: 'Sobreposição de Tela' },
+                            { id: 'accessibility', label: 'Acessibilidade' },
+                            { id: 'audio', label: 'Microfone' },
+                          ].map(perm => (
+                            <button
+                              key={perm.id}
+                              onClick={() => togglePermission(perm.id as keyof typeof permissions)}
+                              className={`w-full p-4 rounded-xl border flex items-center justify-between transition-all ${
+                                permissions[perm.id as keyof typeof permissions]
+                                ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-500'
+                                : 'bg-zinc-900 border-zinc-800 text-zinc-400'
+                              }`}
+                            >
+                              <span className="text-sm font-bold">{perm.label}</span>
+                              {permissions[perm.id as keyof typeof permissions] ? <CheckCircle2 className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+                            </button>
+                          ))}
+                        </div>
+
+                        <button
+                          disabled={!allPermissionsGranted}
+                          onClick={() => {
+                            setIsRequestingPermissions(false);
+                            setIsServiceActive(true);
+                            setShowOverlaySimulation(true);
+                          }}
+                          className={`w-full py-4 rounded-xl font-bold transition-all ${
+                            allPermissionsGranted
+                            ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20'
+                            : 'bg-zinc-800 text-zinc-500'
+                          }`}
+                        >
+                          Concluir e Iniciar
+                        </button>
+                      </motion.div>
+                    )}
+
+                    {/* Floating Sidebar Overlay (Real Mode) */}
+                    {appMode === 'real' && isServiceActive && (
+                      <motion.div 
+                        initial={{ x: -60 }}
+                        animate={{ x: 0 }}
+                        className="absolute left-0 top-1/4 z-[120] w-12 h-48 bg-zinc-900/90 backdrop-blur-md border border-r-blue-500/50 rounded-r-2xl shadow-2xl flex flex-col items-center py-4 gap-6"
+                      >
+                        <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/20">
+                          <Brain className="w-5 h-5 text-white" />
+                        </div>
+                        <div className="flex flex-col gap-4 text-zinc-500">
+                          <Mic className="w-5 h-5 hover:text-blue-400 cursor-pointer transition-colors" />
+                          <MousePointer2 className="w-5 h-5 hover:text-blue-400 cursor-pointer transition-colors" />
+                          <Settings className="w-5 h-5 hover:text-blue-400 cursor-pointer transition-colors" />
+                        </div>
+                        <div className="mt-auto">
+                          <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                        </div>
+                      </motion.div>
+                    )}
+
+                    {/* Floating Overlay Simulation (Real Mode - Dragable Icon) */}
                     {appMode === 'real' && showOverlaySimulation && (
                       <motion.div 
                         drag
